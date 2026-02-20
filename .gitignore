@@ -1,2 +1,3 @@
 # Local sensitive config
 apps/chat-lite/config.js
+apps/chat-lite/server.log

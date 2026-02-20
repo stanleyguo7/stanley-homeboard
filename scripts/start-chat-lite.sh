@@ -12,6 +12,5 @@ echo "[chat-lite] syncing latest code from GitHub..."
 git fetch origin "$BRANCH"
 git pull --ff-only origin "$BRANCH"
 
-echo "[chat-lite] starting static server on 0.0.0.0:${PORT}"
-cd "$APP_DIR"
-exec python3 -m http.server "$PORT" --bind 0.0.0.0
+echo "[chat-lite] starting no-cache server on 0.0.0.0:${PORT}"
+exec python3 "$REPO_DIR/scripts/chat_lite_server.py" --bind 0.0.0.0 --port "$PORT" --dir "$APP_DIR"

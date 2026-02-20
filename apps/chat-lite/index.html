@@ -87,6 +87,8 @@
   let pending = new Map();
   let reqId = 1;
   let lastRenderSig = '';
+  let lastServerMessages = [];
+  let outbox = [];
   let firstPaint = true;
   let refreshTimer = null;
   let sessionKeys = [];
@@ -149,8 +151,7 @@
   }
 
   function shapeMessages(messages){
-    let compact = messages
-      .map(m => ({ role: m.role, text: textFromContent(m.content) }))
+    let compact = (messages || [])
       .filter(m => m.text)
       .slice(-MAX_RENDER_MESSAGES);
 
@@ -172,10 +173,35 @@
     return folded;
   }
 
-  function render(messages){
-    const compact = shapeMessages(messages);
+  function reconcileOutbox(messages){
+    const serverUserTexts = new Set(
+      (messages || [])
+        .filter(m => m.role === 'user')
+        .map(m => textFromContent(m.content))
+        .filter(Boolean)
+    );
 
-    const sig = JSON.stringify(compact.map(m => [m.role, m.text]));
+    outbox = outbox.filter(item => {
+      if (item.sessionKey !== currentSessionKey) return true;
+      if (!serverUserTexts.has(item.text)) return true;
+      if (item.status === 'failed') return true;
+      const ackedAt = item.ackedAt || Date.now();
+      return Date.now() - ackedAt < 1500; // briefly show ✅ then remove
+    });
+  }
+
+  function materializeMessages(messages){
+    const base = (messages || []).map(m => ({ role: m.role, text: textFromContent(m.content), local: false }));
+    const locals = outbox
+      .filter(o => o.sessionKey === currentSessionKey)
+      .map(o => ({ role: 'user', text: o.text, local: true, status: o.status, id: o.id }));
+    return [...base, ...locals].filter(m => m.text);
+  }
+
+  function render(messages){
+    const compact = shapeMessages(materializeMessages(messages));
+
+    const sig = JSON.stringify(compact.map(m => [m.role, m.text, m.local ? m.status : '']));
     if (sig === lastRenderSig) return;
 
     const stickBottom = firstPaint || isNearBottom();
@@ -185,7 +211,12 @@
     compact.forEach(m => {
       const d = document.createElement('div');
       d.className = 'bubble ' + (m.role === 'user' ? 'me' : 'ai');
-      d.textContent = m.text;
+      if (m.local) {
+        const suffix = m.status === 'sent' ? ' ✅' : (m.status === 'failed' ? ' ❌' : ' ⏳');
+        d.textContent = m.text + suffix;
+      } else {
+        d.textContent = m.text;
+      }
       msgsEl.appendChild(d);
     });
 
@@ -221,19 +252,37 @@
   async function refresh(){
     try {
       const res = await rpc('chat.history', { sessionKey: currentSessionKey, limit: MAX_RENDER_MESSAGES });
-      if (res && res.messages) render(res.messages);
+      if (res && res.messages) {
+        lastServerMessages = res.messages;
+        reconcileOutbox(lastServerMessages);
+        render(lastServerMessages);
+      }
     } catch(e) {}
   }
 
   async function send(){
     const msg = inputEl.value.trim();
     if (!msg || ws.readyState !== 1) return;
+
+    const localId = genId();
+    outbox.push({ id: localId, sessionKey: currentSessionKey, text: msg, status: 'pending', ts: Date.now(), ackedAt: 0 });
+    inputEl.value = '';
+    render(lastServerMessages);
+
     sendBtn.disabled = true;
     try {
-      await rpc('chat.send', { sessionKey: currentSessionKey, message: msg, idempotencyKey: genId() });
-      inputEl.value = '';
+      await rpc('chat.send', { sessionKey: currentSessionKey, message: msg, idempotencyKey: localId });
+      const item = outbox.find(x => x.id === localId);
+      if (item) {
+        item.status = 'sent';
+        item.ackedAt = Date.now();
+      }
+      render(lastServerMessages);
       await refresh();
     } catch(e) {
+      const item = outbox.find(x => x.id === localId);
+      if (item) item.status = 'failed';
+      render(lastServerMessages);
       addSys('发送失败：' + e.message);
     } finally {
       sendBtn.disabled = false;

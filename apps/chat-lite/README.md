@@ -18,7 +18,7 @@ cp config.example.js config.js
 bash scripts/start-chat-lite.sh 8790
 ```
 
-> 这样可以确保服务始终基于 GitHub 最新代码。
+> 这样可以确保服务始终基于 GitHub 最新代码，并默认关闭浏览器缓存（避免看到旧页面）。
 
 4. （可选）仅在当前目录临时启动静态服务：
 
