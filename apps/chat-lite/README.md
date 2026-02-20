@@ -12,13 +12,21 @@ cp config.example.js config.js
 
 2. 编辑 `config.js`，填入你的 `gateway token`。
 
-3. 在该目录启动静态服务（示例）：
+3. 推荐从仓库根目录启动（会先同步 GitHub 最新代码再启动）：
+
+```bash
+bash scripts/start-chat-lite.sh 8790
+```
+
+> 这样可以确保服务始终基于 GitHub 最新代码。
+
+4. （可选）仅在当前目录临时启动静态服务：
 
 ```bash
 python3 -m http.server 8790
 ```
 
-4. 手机访问并可添加到主屏幕。
+5. 手机访问并可添加到主屏幕。
 
 ## 安全说明
 
