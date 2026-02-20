@@ -49,6 +49,7 @@
     <div class="sessionbar">
       <select id="sessionSel"></select>
       <input id="topicInput" placeholder="这个会话的话题" />
+      <button id="refreshBtn" class="mini">刷新</button>
       <button id="addSessionBtn" class="mini">+会话</button>
     </div>
   </div>
@@ -78,6 +79,7 @@
   const sessionSel = document.getElementById('sessionSel');
   const topicInput = document.getElementById('topicInput');
   const addSessionBtn = document.getElementById('addSessionBtn');
+  const refreshBtn = document.getElementById('refreshBtn');
 
   let ws;
   let pending = new Map();
@@ -265,6 +267,12 @@
   };
 
   sessionSel.addEventListener('change', () => switchSession(sessionSel.value));
+  refreshBtn.addEventListener('click', async () => {
+    await loadSessions();
+    await refresh();
+    addSys('已刷新会话与消息');
+  });
+
   addSessionBtn.addEventListener('click', () => {
     const k = prompt('输入 session key（例如 agent:main:main）');
     if (!k) return;
