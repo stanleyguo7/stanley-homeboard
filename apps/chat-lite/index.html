@@ -150,8 +150,29 @@
     modeBtn.textContent = conciseMode ? '简洁模式✓' : '完整模式';
   }
 
+  function stripConversationNoise(text){
+    let t = String(text || '');
+
+    // 去掉 "Conversation info (untrusted metadata)" 及其 JSON 代码块
+    t = t.replace(/Conversation info \(untrusted metadata\):\s*```json[\s\S]*?```/gi, '');
+
+    // 去掉系统执行状态行
+    t = t.replace(/^System:\s*\[.*?\]\s*Exec .*$/gmi, '');
+
+    // 去掉纯状态回复
+    t = t.replace(/^\s*(NO_REPLY|HEARTBEAT_OK)\s*$/gmi, '');
+
+    // 去掉时间戳前缀行（如 [Fri ... GMT+8]）
+    t = t.replace(/^\s*\[[^\]]*GMT[+-]\d+[^\]]*\]\s*/gmi, '');
+
+    // 压缩多余空行
+    t = t.replace(/\n{3,}/g, '\n\n').trim();
+    return t;
+  }
+
   function shapeMessages(messages){
     let compact = (messages || [])
+      .map(m => ({ ...m, text: conciseMode ? stripConversationNoise(m.text) : m.text }))
       .filter(m => m.text)
       .slice(-MAX_RENDER_MESSAGES);
 
