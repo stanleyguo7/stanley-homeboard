@@ -49,6 +49,7 @@
     <div class="sessionbar">
       <select id="sessionSel"></select>
       <input id="topicInput" placeholder="这个会话的话题" />
+      <button id="modeBtn" class="mini">简洁模式</button>
       <button id="refreshBtn" class="mini">刷新</button>
       <button id="addSessionBtn" class="mini">+会话</button>
     </div>
@@ -80,6 +81,7 @@
   const topicInput = document.getElementById('topicInput');
   const addSessionBtn = document.getElementById('addSessionBtn');
   const refreshBtn = document.getElementById('refreshBtn');
+  const modeBtn = document.getElementById('modeBtn');
 
   let ws;
   let pending = new Map();
@@ -89,6 +91,7 @@
   let refreshTimer = null;
   let sessionKeys = [];
   let currentSessionKey = localStorage.getItem('chatlite.currentSession') || DEFAULT_SESSION;
+  let conciseMode = localStorage.getItem('chatlite.conciseMode') !== '0'; // default: true
 
   function setStatus(t){ statusEl.textContent = t; }
   function genId(){ return `c${Date.now()}_${reqId++}`; }
@@ -141,11 +144,36 @@
     refresh();
   }
 
-  function render(messages){
-    const compact = messages
+  function renderModeBtn(){
+    modeBtn.textContent = conciseMode ? '简洁模式✓' : '完整模式';
+  }
+
+  function shapeMessages(messages){
+    let compact = messages
       .map(m => ({ role: m.role, text: textFromContent(m.content) }))
       .filter(m => m.text)
       .slice(-MAX_RENDER_MESSAGES);
+
+    if (!conciseMode) return compact;
+
+    // 简洁模式：
+    // 1) 仅保留 user/assistant
+    // 2) assistant 连续输出时，仅保留最后一条（隐藏中间过程）
+    compact = compact.filter(m => m.role === 'user' || m.role === 'assistant');
+    const folded = [];
+    compact.forEach((m) => {
+      const prev = folded[folded.length - 1];
+      if (m.role === 'assistant' && prev && prev.role === 'assistant') {
+        folded[folded.length - 1] = m;
+      } else {
+        folded.push(m);
+      }
+    });
+    return folded;
+  }
+
+  function render(messages){
+    const compact = shapeMessages(messages);
 
     const sig = JSON.stringify(compact.map(m => [m.role, m.text]));
     if (sig === lastRenderSig) return;
@@ -273,6 +301,14 @@
     addSys('已刷新会话与消息');
   });
 
+  modeBtn.addEventListener('click', async () => {
+    conciseMode = !conciseMode;
+    localStorage.setItem('chatlite.conciseMode', conciseMode ? '1' : '0');
+    renderModeBtn();
+    lastRenderSig = '';
+    await refresh();
+  });
+
   addSessionBtn.addEventListener('click', () => {
     const k = prompt('输入 session key（例如 agent:main:main）');
     if (!k) return;
@@ -287,6 +323,8 @@
   inputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   });
+
+  renderModeBtn();
 
   if (!token) setStatus('缺少 token（请检查 config.js）');
   else connect();
