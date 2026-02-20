@@ -23,6 +23,11 @@
     .title{font-weight:700;display:flex;align-items:center;gap:8px}
     .dot{width:8px;height:8px;border-radius:50%;background:#18b663;box-shadow:0 0 0 2px rgba(24,182,99,.15)}
     .sub{font-size:12px;color:var(--muted);margin-top:2px}
+    .sessionbar{display:flex;gap:8px;margin-top:8px;align-items:center}
+    .sessionbar select,.sessionbar input{border:1px solid #d8d8d8;border-radius:8px;padding:6px 8px;font-size:12px;background:#fff}
+    .sessionbar select{flex:1;min-width:0}
+    .sessionbar input{width:40%}
+    .sessionbar .mini{padding:6px 8px;border-radius:8px;font-size:12px;background:#eef5ff;color:#0b63c9;border:1px solid #cfe3ff}
     .msgs{padding:12px;display:flex;flex-direction:column;gap:10px;flex:1;overflow:auto}
     .bubble{max-width:88%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;word-break:break-word;line-height:1.4;box-shadow:0 1px 2px rgba(0,0,0,.04)}
     .me{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:6px}
@@ -41,6 +46,11 @@
   <div class="top">
     <div class="title">Thundy <span class="dot"></span></div>
     <div id="status" class="sub">连接中…</div>
+    <div class="sessionbar">
+      <select id="sessionSel"></select>
+      <input id="topicInput" placeholder="这个会话的话题" />
+      <button id="addSessionBtn" class="mini">+会话</button>
+    </div>
   </div>
   <div id="msgs" class="msgs"></div>
   <button id="jumpBtn" class="jump">回到底部</button>
@@ -56,24 +66,31 @@
   const host = cfg.host || location.hostname || '100.96.233.69';
   const wsUrl = `ws://${host}:${cfg.gatewayPort || 18789}`;
   const token = cfg.token || '';
-  const sessionKey = cfg.sessionKey || 'agent:main:main';
   const REFRESH_MS = cfg.refreshMs || 1800;
   const MAX_RENDER_MESSAGES = cfg.maxRenderMessages || 120;
+  const DEFAULT_SESSION = cfg.sessionKey || 'agent:main:main';
 
   const statusEl = document.getElementById('status');
   const msgsEl = document.getElementById('msgs');
   const inputEl = document.getElementById('input');
   const sendBtn = document.getElementById('send');
   const jumpBtn = document.getElementById('jumpBtn');
+  const sessionSel = document.getElementById('sessionSel');
+  const topicInput = document.getElementById('topicInput');
+  const addSessionBtn = document.getElementById('addSessionBtn');
 
   let ws;
   let pending = new Map();
   let reqId = 1;
   let lastRenderSig = '';
   let firstPaint = true;
+  let refreshTimer = null;
+  let sessionKeys = [];
+  let currentSessionKey = localStorage.getItem('chatlite.currentSession') || DEFAULT_SESSION;
 
   function setStatus(t){ statusEl.textContent = t; }
   function genId(){ return `c${Date.now()}_${reqId++}`; }
+  function topicStoreKey(sk){ return `chatlite.topic.${sk}`; }
 
   function addSys(text){
     const d = document.createElement('div'); d.className='sys'; d.textContent=text;
@@ -94,11 +111,39 @@
     else jumpBtn.classList.add('show');
   }
 
+  function renderSessionOptions(){
+    sessionSel.innerHTML = '';
+    sessionKeys.forEach(k => {
+      const o = document.createElement('option');
+      o.value = k;
+      o.textContent = k;
+      if (k === currentSessionKey) o.selected = true;
+      sessionSel.appendChild(o);
+    });
+    topicInput.value = localStorage.getItem(topicStoreKey(currentSessionKey)) || '';
+  }
+
+  function ensureSession(k){
+    if (!k) return;
+    if (!sessionKeys.includes(k)) sessionKeys.unshift(k);
+    sessionKeys = [...new Set(sessionKeys)].slice(0, 40);
+    renderSessionOptions();
+  }
+
+  function switchSession(k){
+    currentSessionKey = k;
+    localStorage.setItem('chatlite.currentSession', currentSessionKey);
+    lastRenderSig = '';
+    firstPaint = true;
+    renderSessionOptions();
+    refresh();
+  }
+
   function render(messages){
     const compact = messages
       .map(m => ({ role: m.role, text: textFromContent(m.content) }))
       .filter(m => m.text)
-      .slice(-MAX_RENDER_MESSAGES); // 正序：最新在底部
+      .slice(-MAX_RENDER_MESSAGES);
 
     const sig = JSON.stringify(compact.map(m => [m.role, m.text]));
     if (sig === lastRenderSig) return;
@@ -130,9 +175,22 @@
     });
   }
 
+  async function loadSessions(){
+    const seeded = Array.isArray(cfg.sessions) ? cfg.sessions : [];
+    sessionKeys = [currentSessionKey, DEFAULT_SESSION, ...seeded].filter(Boolean);
+    renderSessionOptions();
+
+    try {
+      const res = await rpc('sessions.list', { limit: 30 });
+      const fromApi = (res?.sessions || []).map(s => s.key).filter(Boolean);
+      sessionKeys = [...new Set([currentSessionKey, ...fromApi, ...sessionKeys])];
+      renderSessionOptions();
+    } catch (_) {}
+  }
+
   async function refresh(){
     try {
-      const res = await rpc('chat.history', { sessionKey, limit: 120 });
+      const res = await rpc('chat.history', { sessionKey: currentSessionKey, limit: MAX_RENDER_MESSAGES });
       if (res && res.messages) render(res.messages);
     } catch(e) {}
   }
@@ -142,7 +200,7 @@
     if (!msg || ws.readyState !== 1) return;
     sendBtn.disabled = true;
     try {
-      await rpc('chat.send', { sessionKey, message: msg, idempotencyKey: genId() });
+      await rpc('chat.send', { sessionKey: currentSessionKey, message: msg, idempotencyKey: genId() });
       inputEl.value = '';
       await refresh();
     } catch(e) {
@@ -181,16 +239,22 @@
         }
         if (m.ok && m.payload?.type === 'hello-ok') {
           setStatus('已连接');
+          loadSessions();
           refresh();
-          setInterval(refresh, REFRESH_MS);
+          if (refreshTimer) clearInterval(refreshTimer);
+          refreshTimer = setInterval(refresh, REFRESH_MS);
         }
       }
 
-      if (m.type === 'event' && m.event === 'chat' && m.payload?.sessionKey === sessionKey) {
+      if (m.type === 'event' && m.event === 'chat' && m.payload?.sessionKey === currentSessionKey) {
         refresh();
       }
     };
-    ws.onclose = () => { setStatus('连接断开，3秒后重连'); setTimeout(connect, 3000); };
+    ws.onclose = () => {
+      setStatus('连接断开，3秒后重连');
+      if (refreshTimer) clearInterval(refreshTimer);
+      setTimeout(connect, 3000);
+    };
     ws.onerror = () => setStatus('连接错误');
   }
 
@@ -199,16 +263,25 @@
     msgsEl.scrollTop = msgsEl.scrollHeight;
     updateJumpBtn();
   };
+
+  sessionSel.addEventListener('change', () => switchSession(sessionSel.value));
+  addSessionBtn.addEventListener('click', () => {
+    const k = prompt('输入 session key（例如 agent:main:main）');
+    if (!k) return;
+    ensureSession(k.trim());
+    switchSession(k.trim());
+  });
+  topicInput.addEventListener('change', () => {
+    localStorage.setItem(topicStoreKey(currentSessionKey), topicInput.value || '');
+  });
+
   msgsEl.addEventListener('scroll', updateJumpBtn);
   inputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   });
 
-  if (!token) {
-    setStatus('缺少 token（请检查 config.js）');
-  } else {
-    connect();
-  }
+  if (!token) setStatus('缺少 token（请检查 config.js）');
+  else connect();
 })();
 </script>
 </body>
