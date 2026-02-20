@@ -66,7 +66,9 @@
 (() => {
   const cfg = window.CHATLITE_CONFIG || {};
   const host = cfg.host || location.hostname || '100.96.233.69';
-  const wsUrl = `ws://${host}:${cfg.gatewayPort || 18789}`;
+  const gatewayPort = cfg.gatewayPort || 18789;
+  const gatewayProtocol = cfg.gatewayProtocol || (location.protocol === 'https:' ? 'wss' : 'ws');
+  const wsUrl = cfg.gatewayUrl || `${gatewayProtocol}://${host}:${gatewayPort}`;
   const token = cfg.token || '';
   const REFRESH_MS = cfg.refreshMs || 1800;
   const MAX_RENDER_MESSAGES = cfg.maxRenderMessages || 120;

@@ -11,6 +11,8 @@ cp config.example.js config.js
 ```
 
 2. 编辑 `config.js`，填入你的 `gateway token`。
+   - 常规内网：使用 `host + gatewayPort`（默认 `ws`）
+   - HTTPS/反代：设置 `gatewayProtocol: "wss"` 或直接设置 `gatewayUrl`
 
 3. 推荐从仓库根目录启动（会先同步 GitHub 最新代码再启动）：
 
