@@ -50,7 +50,6 @@
       <select id="sessionSel"></select>
       <input id="topicInput" placeholder="这个会话的话题" />
       <button id="modeBtn" class="mini">简洁模式</button>
-      <button id="refreshBtn" class="mini">刷新</button>
       <button id="addSessionBtn" class="mini">+会话</button>
     </div>
   </div>
@@ -82,7 +81,6 @@
   const sessionSel = document.getElementById('sessionSel');
   const topicInput = document.getElementById('topicInput');
   const addSessionBtn = document.getElementById('addSessionBtn');
-  const refreshBtn = document.getElementById('refreshBtn');
   const modeBtn = document.getElementById('modeBtn');
 
   let ws;
@@ -118,6 +116,13 @@
   function updateJumpBtn(){
     if (isNearBottom()) jumpBtn.classList.remove('show');
     else jumpBtn.classList.add('show');
+  }
+
+  function delayedScrollToBottom(delay = 260){
+    setTimeout(() => {
+      msgsEl.scrollTop = msgsEl.scrollHeight;
+      updateJumpBtn();
+    }, delay);
   }
 
   function renderSessionOptions(){
@@ -343,6 +348,8 @@
           setStatus('已连接');
           loadSessions();
           refresh();
+          delayedScrollToBottom(320);
+          delayedScrollToBottom(700);
           if (refreshTimer) clearInterval(refreshTimer);
           refreshTimer = setInterval(refresh, REFRESH_MS);
         }
@@ -367,12 +374,6 @@
   };
 
   sessionSel.addEventListener('change', () => switchSession(sessionSel.value));
-  refreshBtn.addEventListener('click', async () => {
-    await loadSessions();
-    await refresh();
-    addSys('已刷新会话与消息');
-  });
-
   modeBtn.addEventListener('click', async () => {
     conciseMode = !conciseMode;
     localStorage.setItem('chatlite.conciseMode', conciseMode ? '1' : '0');
