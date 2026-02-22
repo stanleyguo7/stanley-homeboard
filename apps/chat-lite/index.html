@@ -71,7 +71,8 @@
   const wsUrl = cfg.gatewayUrl || `${gatewayProtocol}://${host}:${gatewayPort}`;
   const token = cfg.token || '';
   const REFRESH_MS = cfg.refreshMs || 1800;
-  const MAX_RENDER_MESSAGES = cfg.maxRenderMessages || 120;
+  const MAX_RENDER_MESSAGES = cfg.maxRenderMessages || 60;
+  const STARTUP_MESSAGES = cfg.startupMessages || 30;
   const DEFAULT_SESSION = cfg.sessionKey || 'agent:main:main';
 
   const statusDotEl = document.getElementById('statusDot');
@@ -107,6 +108,16 @@
   }
   function genId(){ return `c${Date.now()}_${reqId++}`; }
   function topicStoreKey(sk){ return `chatlite.topic.${sk}`; }
+
+  function cleanupLocalCache(){
+    // 只保留最近 session 的话题缓存，避免 localStorage 无限增长
+    const keep = new Set(sessionKeys.slice(0, 30).map(k => topicStoreKey(k)));
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith('chatlite.topic.')) continue;
+      if (!keep.has(k)) localStorage.removeItem(k);
+    }
+  }
 
   function addSys(text){
     const d = document.createElement('div'); d.className='sys'; d.textContent=text;
@@ -159,7 +170,7 @@
     lastRenderSig = '';
     firstPaint = true;
     renderSessionOptions();
-    refresh();
+    refresh(STARTUP_MESSAGES);
   }
 
   function renderModeBtn(){
@@ -277,18 +288,20 @@
     const seeded = Array.isArray(cfg.sessions) ? cfg.sessions : [];
     sessionKeys = [currentSessionKey, DEFAULT_SESSION, ...seeded].filter(Boolean);
     renderSessionOptions();
+    cleanupLocalCache();
 
     try {
       const res = await rpc('sessions.list', { limit: 30 });
       const fromApi = (res?.sessions || []).map(s => s.key).filter(Boolean);
       sessionKeys = [...new Set([currentSessionKey, ...fromApi, ...sessionKeys])];
       renderSessionOptions();
+      cleanupLocalCache();
     } catch (_) {}
   }
 
-  async function refresh(){
+  async function refresh(limit = MAX_RENDER_MESSAGES){
     try {
-      const res = await rpc('chat.history', { sessionKey: currentSessionKey, limit: MAX_RENDER_MESSAGES });
+      const res = await rpc('chat.history', { sessionKey: currentSessionKey, limit });
       if (res && res.messages) {
         lastServerMessages = res.messages;
         reconcileOutbox(lastServerMessages);
@@ -356,7 +369,7 @@
         if (m.ok && m.payload?.type === 'hello-ok') {
           setStatus('已连接');
           loadSessions();
-          refresh();
+          refresh(STARTUP_MESSAGES);
           delayedScrollToBottom(320);
           delayedScrollToBottom(700);
           if (refreshTimer) clearInterval(refreshTimer);
