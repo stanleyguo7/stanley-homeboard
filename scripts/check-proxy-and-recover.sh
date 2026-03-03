@@ -21,8 +21,14 @@ set -euo pipefail
 # 自动切换节点（可选）：
 #   PASSWALL_NODE_CANDIDATES   候选节点 ID（逗号分隔）
 #                              例："hk_node,sg_node,jp_node"
-#   PASSWALL_GLOBAL_SECTION    UCI section（默认 @global[0]）
-#   PASSWALL_NODE_OPTION       节点字段（默认 tcp_node）
+#   PASSWALL_GLOBAL_SECTION    全局 section（默认 @global[0]，用于自动探测）
+#   PASSWALL_TARGET_SECTION    实际写入 section（默认自动探测）
+#   PASSWALL_NODE_OPTION       实际写入字段（默认自动探测）
+#
+#   自动探测逻辑：
+#   1) @global[0].tcp_node 存在 -> 写 @global[0].tcp_node
+#   2) @global[0].node 指向某节点，且该节点有 default_node -> 写 <node>.default_node
+#   3) 否则写 @global[0].node
 
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -40,7 +46,8 @@ ROUTER_RELOAD_CMD="${ROUTER_RELOAD_CMD:-/etc/init.d/passwall2 reload || /etc/ini
 
 PASSWALL_NODE_CANDIDATES="${PASSWALL_NODE_CANDIDATES:-}"
 PASSWALL_GLOBAL_SECTION="${PASSWALL_GLOBAL_SECTION:-@global[0]}"
-PASSWALL_NODE_OPTION="${PASSWALL_NODE_OPTION:-tcp_node}"
+PASSWALL_TARGET_SECTION="${PASSWALL_TARGET_SECTION:-}"
+PASSWALL_NODE_OPTION="${PASSWALL_NODE_OPTION:-}"
 
 IFS=',' read -r -a URLS <<< "$CHECK_URLS"
 
@@ -69,6 +76,33 @@ remote_run() {
   ssh -p "$ROUTER_PORT" $ROUTER_SSH_OPTS "${ROUTER_USER}@${ROUTER_HOST}" "$cmd"
 }
 
+detect_passwall_target() {
+  if [[ -n "$PASSWALL_TARGET_SECTION" && -n "$PASSWALL_NODE_OPTION" ]]; then
+    return 0
+  fi
+
+  local gnode has_tcp has_default
+  has_tcp="$(remote_run "uci -q get passwall2.${PASSWALL_GLOBAL_SECTION}.tcp_node >/dev/null 2>&1; echo $?" | tr -d '\r\n')"
+  if [[ "$has_tcp" == "0" ]]; then
+    PASSWALL_TARGET_SECTION="$PASSWALL_GLOBAL_SECTION"
+    PASSWALL_NODE_OPTION="tcp_node"
+    return 0
+  fi
+
+  gnode="$(remote_run "uci -q get passwall2.${PASSWALL_GLOBAL_SECTION}.node || true" | tr -d '\r\n')"
+  if [[ -n "$gnode" ]]; then
+    has_default="$(remote_run "uci -q get passwall2.${gnode}.default_node >/dev/null 2>&1; echo $?" | tr -d '\r\n')"
+    if [[ "$has_default" == "0" ]]; then
+      PASSWALL_TARGET_SECTION="$gnode"
+      PASSWALL_NODE_OPTION="default_node"
+      return 0
+    fi
+  fi
+
+  PASSWALL_TARGET_SECTION="$PASSWALL_GLOBAL_SECTION"
+  PASSWALL_NODE_OPTION="node"
+}
+
 rotate_node_if_configured() {
   if [[ -z "$PASSWALL_NODE_CANDIDATES" ]]; then
     log "未配置 PASSWALL_NODE_CANDIDATES，跳过节点切换。"
@@ -81,10 +115,12 @@ rotate_node_if_configured() {
     return 0
   fi
 
-  local candidates_joined current next idx=-1
-  candidates_joined="${CANDIDATES[*]}"
+  local current next idx=-1
 
-  current="$(remote_run "uci -q get passwall2.${PASSWALL_GLOBAL_SECTION}.${PASSWALL_NODE_OPTION} || true" | tr -d '\r' | tr -d '\n')"
+  detect_passwall_target
+  log "节点切换目标：passwall2.${PASSWALL_TARGET_SECTION}.${PASSWALL_NODE_OPTION}"
+
+  current="$(remote_run "uci -q get passwall2.${PASSWALL_TARGET_SECTION}.${PASSWALL_NODE_OPTION} || true" | tr -d '\r' | tr -d '\n')"
   log "当前节点：${current:-<empty>}"
 
   for i in "${!CANDIDATES[@]}"; do
@@ -101,7 +137,7 @@ rotate_node_if_configured() {
   fi
 
   log "尝试切换节点：$current -> $next"
-  remote_run "uci set passwall2.${PASSWALL_GLOBAL_SECTION}.${PASSWALL_NODE_OPTION}='${next}' && uci commit passwall2"
+  remote_run "uci set passwall2.${PASSWALL_TARGET_SECTION}.${PASSWALL_NODE_OPTION}='${next}' && uci commit passwall2"
 }
 
 recover_proxy() {
