@@ -5,7 +5,7 @@
 ## 主要模块
 
 1. **`generate_recs.py`**：归一化 `~/NetflixViewingHistory.csv`，统计你的最爱剧目和关键词热度，结合 `recommendations.json` 中的手动剧单，输出 Markdown 报告 `reports/latest-recommendation.md`。
-2. **`fetch_new_releases.py`**：从 "Whats on Netflix" 抓最新发布列表（当前抓取 `https://www.whats-on-netflix.com/whats-new/`），生成 `reports/new-releases.json`。
+2. **`fetch_new_releases.py`**：抓取 `https://www.whats-on-netflix.com/feed/`（包含多篇 Netflix 新剧资讯），生成 `reports/new-releases.json` 并在 dashboard 中突出“香港+全球”新片推荐。
 3. **`dashboard.py`**：整合观看统计 + 推荐 + 新发布、生成 `reports/dashboard.html` 作为个人影片管理页，可直接挂到个人主页或 Vercel。
 
 ## 使用方法
