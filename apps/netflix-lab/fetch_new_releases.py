@@ -27,7 +27,13 @@ def fetch(limit: int = 10):
     for item in root.findall("channel/item")[:limit]:
         title = item.findtext("title", default="").strip()
         summary = item.findtext("description", default="").strip()
-        releases.append({"title": title, "summary": summary[:220], "region": "HK Feed"})
+        link = item.findtext("link", default="https://www.netflix.com/").strip()
+        releases.append({
+            "title": title,
+            "summary": summary[:220],
+            "region": "HK Feed",
+            "source_link": link,
+        })
     return releases
 
 

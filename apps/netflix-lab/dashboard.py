@@ -27,7 +27,7 @@ def render(status, tags, recs, releases):
             cover = rec.get("cover") or "https://images.unsplash.com/photo-1515165562834-c0f1c8f75ff7?auto=format&fit=crop&w=640&q=80"
             actors = ", ".join(rec.get("actors", []))
             genres = ", ".join(rec.get("genres", []))
-            link = rec.get("netflix_link", "#")
+            link = rec.get("netflix_link", "https://www.netflix.com/")
             sections.append(
                 """
                 <article>
@@ -37,21 +37,25 @@ def render(status, tags, recs, releases):
                     <p class='meta'>%s</p>
                     <p class='desc'>%s</p>
                     <p class='meta actors'>演员：%s</p>
+                    <a class='btn' href='%s' target='_blank'>在 Netflix 查看详情</a>
                   </div>
                 </article>
-                """ % (cover, link, rec['title'], genres, rec.get('description') or rec.get('reason', ''), actors)
+                """ % (cover, link, rec['title'], genres, rec.get('description') or rec.get('reason', ''), actors, link)
             )
     sections.append("</div></section>")
     sections.append("<section class='card releases'><h2>香港新片速递</h2><div class='releases'>")
     for release in releases[:3]:
-        summary = release.get('summary','').replace('\n',' ')[:220]
+        summary = release.get('summary','').replace('\n',' ')[:200]
+        link = release.get('source_link','https://www.netflix.com/')
         sections.append(
             """
             <article>
-              <strong>%s</strong>
-              <p>%s</p>
+              <div>
+                <strong><a href='%s' target='_blank'>%s</a></strong>
+                <p>%s</p>
+              </div>
             </article>
-            """ % (release['title'], summary)
+            """ % (link, release['title'], summary)
         )
     sections.append("</div></section>")
     base_style = """<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'/><title>观影仪表板</title><meta name='viewport' content='width=device-width, initial-scale=1'/><style>
@@ -61,11 +65,20 @@ def render(status, tags, recs, releases):
     header{margin-bottom:32px;}
     h1{font-size:2.8rem;margin:0;}
     .subtitle{color:#9fb1c8;font-size:1rem;margin-top:6px;}
-    .card{background:linear-gradient(160deg,#101827,#070B11);border:1px solid rgba(255,255,255,.08);padding:20px 22px;border-radius:22px;margin-bottom:20px;box-shadow:0 25px 50px rgba(5,11,20,.6);}
-    h2{margin-top:0;margin-bottom:16px;font-size:1.5rem;color:#5FE4FF;}
+    .card{background:linear-gradient(160deg,#101827,#070B11);border:1px solid rgba(255,255,255,.08);padding:18px 20px;border-radius:22px;margin-bottom:16px;box-shadow:0 20px 40px rgba(5,11,20,.55);}
+    h2{margin-top:0;margin-bottom:12px;font-size:1.4rem;color:#6BF4FF;letter-spacing:0.02em;}
     ul{list-style:none;margin:0;padding:0;}
-    li{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;}
-    li span{color:#9fb1c8;font-size:0.95rem;}
+    li{padding:8px 0;border-bottom:1px solid rgba(255,255,255,.12);display:flex;flex-direction:column;line-height:1.45;}
+    li span{color:#9fb1c8;font-size:0.9rem;}
+    .recommendations article{display:flex;gap:12px;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:14px;margin-bottom:14px;}
+    .recommendations article:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+    .cover{width:120px;height:180px;}
+    .info{gap:6px;}
+    .info h3{font-size:1.1rem;}
+    .btn{align-self:flex-start;padding:6px 10px;border-radius:999px;background:#23d0ff;color:#05101a;font-size:0.9rem;text-decoration:none;font-weight:600;}
+    .btn:hover{text-decoration:none;background:#1baed3;}
+    .recommendations article .desc{font-size:0.95rem;}
+    .releases article{background:rgba(255,255,255,.03);padding:10px 12px;border-radius:12px;margin-bottom:10px;}
     .card.tags .tag-cloud{display:flex;flex-wrap:wrap;gap:8px;}
     .tag-cloud span{padding:6px 10px;background:rgba(255,255,255,.08);border-radius:999px;font-size:0.9rem;}
     .recommendations article{display:flex;gap:18px;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:18px;margin-bottom:18px;}
