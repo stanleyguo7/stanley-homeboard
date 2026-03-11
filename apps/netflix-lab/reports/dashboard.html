@@ -1,1 +1,92 @@
-<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'/><title>观影仪表板</title><style>body{font-family:'Noto Sans SC',sans-serif;background:#0c0f1c;color:#f5f5f7;margin:0;padding:0;}main{max-width:1100px;margin:0 auto;padding:32px 24px 48px;}header{margin-bottom:28px;}h1{font-size:2.6rem;margin:0;}h2{margin:0 0 12px;font-size:1.4rem;color:#1ef3e3;}section.card{background:linear-gradient(145deg,#111524,#0b0d17);border:1px solid rgba(255,255,255,.08);padding:24px;border-radius:20px;margin-bottom:20px;box-shadow:0 20px 45px rgba(0,0,0,.45);}ul{list-style:none;margin:0;padding:0;}li{border-bottom:1px dashed rgba(255,255,255,.12);padding:10px 0;}li:last-child{border-bottom:none;}strong{font-size:1.15rem;display:block;margin-bottom:6px;}p{margin:0;color:#d4d4de;line-height:1.6;} .recommendations li{display:flex;flex-direction:column;} .releases li{background:rgba(255,255,255,.03);border-radius:12px;padding:12px 14px;margin-bottom:10px;} .footer-note{margin-top:16px;font-size:0.9rem;color:#888;}@media (max-width:768px){section.card{padding:18px;border-radius:16px;}main{padding:24px 16px 40px;}} </style></head><body><main><header><h1>Netflix 观影管家</h1><p class='footer-note'>结合你的历史记录与最新香港新片，帮你快速选剧。</p></header><section class='card'><h2>观影统计</h2><ul><li><strong>绝命毒师</strong> · 22 次 · 2025-08-28</li><li><strong>风骚律师</strong> · 16 次 · 2025-05-12</li><li><strong>绅士怪盗</strong> · 15 次 · 2025-06-20</li><li><strong>鱿鱼游戏</strong> · 14 次 · 2025-07-08</li></ul></section><section class='card'><h2>关键词热度</h2><ul><li>悬疑: 23</li><li>旅行: 21</li><li>女性: 15</li><li>美食: 6</li><li>犯罪: 3</li><li>科幻: 1</li></ul></section><section class='card'><h2>推荐剧集</h2><ul class='recommendations'><li><strong>午夜餐车</strong> · 生活, 旅行, 美食<p>跟着一辆移动餐车探索不同城市和人情味。</p></li><li><strong>罪夜之奔</strong> · 犯罪, 悬疑, 乔装<p>一位女狙击手踏上逃亡与复仇之旅，充满快节奏的心理斗智。</p></li><li><strong>暗夜列车</strong> · 剧情, 悬疑, 心理剧<p>一列长途列车上发生奇怪事件，镜头语言极为精致。</p></li><li><strong>暗香</strong> · 悬疑, 爱情, 女性视角<p>都市女性记者追查离奇案件，穿梭在记忆与现实之间。</p></li><li><strong>漂流家园</strong> · 科幻, 家庭, 情绪<p>一对夫妻在太空情绪崩解，讨论亲密关系与身份。</p></li></ul></section><section class='card'><h2>香港新片速递</h2><ul class='releases'><li><strong>Jack Black and Paul Rudd Comedy ‘Anaconda’ Sets Netflix Streaming Premiere</strong><p>The latest Anaconda brings a meta-twist to the nearly 30-year-old franchise. Following its Christmas theatrical run, we finally have a streaming date: while international availability varies, US subsc</p></li><li><strong>5 European Netflix Shows Coming in 2026 You Shouldn’t Miss</strong><p>These are our five most anticipated new series releases from Europe scheduled to release throughout 2026.</p></li><li><strong>‘A Proper Romance’ Netflix K-Drama Starring Park Hyung Sik: Filming Begins April 2026 & What We Know So Far</strong><p>Filming will get underway in April 2026 on Park Hyung Sik and Park Gyu Young's upcoming office romance K-drama A Proper Romance.</p></li></ul></section></main></body></html>
+<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'/><title>观影仪表板</title><meta name='viewport' content='width=device-width, initial-scale=1'/><style>
+    :root{color-scheme: dark;}
+    body{font-family:'Noto Sans SC',sans-serif;background:#060B16;color:#EFF0F7;margin:0;padding:0;}
+    main{width:min(1100px,100%);margin:0 auto;padding:32px 16px 48px;}
+    header{margin-bottom:32px;}
+    h1{font-size:2.8rem;margin:0;}
+    .subtitle{color:#9fb1c8;font-size:1rem;margin-top:6px;}
+    .card{background:linear-gradient(160deg,#101827,#070B11);border:1px solid rgba(255,255,255,.08);padding:20px 22px;border-radius:22px;margin-bottom:20px;box-shadow:0 25px 50px rgba(5,11,20,.6);}
+    h2{margin-top:0;margin-bottom:16px;font-size:1.5rem;color:#5FE4FF;}
+    ul{list-style:none;margin:0;padding:0;}
+    li{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;}
+    li span{color:#9fb1c8;font-size:0.95rem;}
+    .card.tags .tag-cloud{display:flex;flex-wrap:wrap;gap:8px;}
+    .tag-cloud span{padding:6px 10px;background:rgba(255,255,255,.08);border-radius:999px;font-size:0.9rem;}
+    .recommendations article{display:flex;gap:18px;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:18px;margin-bottom:18px;}
+    .recommendations article:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+    .cover{width:140px;height:200px;background-size:cover;background-position:center;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.45);}
+    .info{flex:1;display:flex;flex-direction:column;gap:8px;}
+    .info h3{margin:0;font-size:1.2rem;}
+    .info h3 a{color:#FFFFFF;text-decoration:none;}
+    .info h3 a:hover{text-decoration:underline;}
+    .meta{color:#9fb1c8;font-size:0.9rem;}
+    .actors{font-size:0.85rem;}
+    .desc{color:#f0f0f7;}
+    .releases article{background:rgba(255,255,255,.02);padding:12px 14px;border-radius:12px;margin-bottom:12px;}
+    @media (max-width:768px){.recommendations article{flex-direction:column;} .cover{width:100%;height:220px;} }
+    </style></head><body><main><header><h1>Netflix 观影管家</h1><p class='subtitle'>结合你的观影记录+香港新片，实时生成个性推荐。</p></header><section class='card stats'><h2>观影概况</h2><ul><li><strong>绝命毒师</strong><span>22 集 · 最后看过 2025-08-28</span></li><li><strong>风骚律师</strong><span>16 集 · 最后看过 2025-05-12</span></li><li><strong>绅士怪盗</strong><span>15 集 · 最后看过 2025-06-20</span></li><li><strong>鱿鱼游戏</strong><span>14 集 · 最后看过 2025-07-08</span></li></ul></section><section class='card tags'><h2>关键词热度</h2><div class='tag-cloud'><span>悬疑 · 23</span><span>旅行 · 21</span><span>女性 · 15</span><span>美食 · 6</span><span>犯罪 · 3</span><span>科幻 · 1</span></div></section><section class='card recs'><h2>推荐剧集</h2><div class='recommendations'>
+                <article>
+                  <div class='cover' style='background-image:url(https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=80);'></div>
+                  <div class='info'>
+                    <h3><a href='https://www.netflix.com/title/81017411' target='_blank'>暗香</a></h3>
+                    <p class='meta'>悬疑, 浪漫, 都市</p>
+                    <p class='desc'>记者穿梭在城市夜色中，借香水嗅出失踪案件的线索。</p>
+                    <p class='meta actors'>演员：徐睿知, 崔宇植</p>
+                  </div>
+                </article>
+                
+                <article>
+                  <div class='cover' style='background-image:url(https://images.unsplash.com/photo-1484723091739-30a097e8f929?auto=format&fit=crop&w=640&q=80);'></div>
+                  <div class='info'>
+                    <h3><a href='https://www.netflix.com/title/81116388' target='_blank'>午夜餐车</a></h3>
+                    <p class='meta'>美食, 旅行, 纪录</p>
+                    <p class='desc'>移动餐车走遍东南亚海岸，用当季食材讲述旅人的故事。</p>
+                    <p class='meta actors'>演员：钟志贤, 金裕贞</p>
+                  </div>
+                </article>
+                
+                <article>
+                  <div class='cover' style='background-image:url(https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=640&q=80);'></div>
+                  <div class='info'>
+                    <h3><a href='https://www.netflix.com/title/81390249' target='_blank'>罪夜之奔</a></h3>
+                    <p class='meta'>犯罪, 心理, 都市</p>
+                    <p class='desc'>女狙击手混迹都市，追寻亲人死因，镜头极速且情绪张力强。</p>
+                    <p class='meta actors'>演员：宋慧乔, 姜河那, 李凯南</p>
+                  </div>
+                </article>
+                
+                <article>
+                  <div class='cover' style='background-image:url(https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=640&q=80);'></div>
+                  <div class='info'>
+                    <h3><a href='https://www.netflix.com/title/80992911' target='_blank'>暗夜列车</a></h3>
+                    <p class='meta'>悬疑, 心理, 限制空间</p>
+                    <p class='desc'>列车上的神秘杀手引出乘客过去的纠葛，每站都是心理战。</p>
+                    <p class='meta actors'>演员：李学庆, 郑好, 刘仁娜</p>
+                  </div>
+                </article>
+                
+                <article>
+                  <div class='cover' style='background-image:url(https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=640&q=80);'></div>
+                  <div class='info'>
+                    <h3><a href='https://www.netflix.com/title/81386759' target='_blank'>漂流家园</a></h3>
+                    <p class='meta'>科幻, 家庭剧情, 未来</p>
+                    <p class='desc'>远征太空的夫妻面对未知生物与亲密危机，在零重力中重新定义家庭。</p>
+                    <p class='meta actors'>演员：郑雨盛, 金智秀, 朴宝英</p>
+                  </div>
+                </article>
+                </div></section><section class='card releases'><h2>香港新片速递</h2><div class='releases'>
+            <article>
+              <strong>Jack Black and Paul Rudd Comedy ‘Anaconda’ Sets Netflix Streaming Premiere</strong>
+              <p>The latest Anaconda brings a meta-twist to the nearly 30-year-old franchise. Following its Christmas theatrical run, we finally have a streaming date: while international availability varies, US subscribers can catch it </p>
+            </article>
+            
+            <article>
+              <strong>5 European Netflix Shows Coming in 2026 You Shouldn’t Miss</strong>
+              <p>These are our five most anticipated new series releases from Europe scheduled to release throughout 2026.</p>
+            </article>
+            
+            <article>
+              <strong>‘A Proper Romance’ Netflix K-Drama Starring Park Hyung Sik: Filming Begins April 2026 & What We Know So Far</strong>
+              <p>Filming will get underway in April 2026 on Park Hyung Sik and Park Gyu Young's upcoming office romance K-drama A Proper Romance.</p>
+            </article>
+            </div></section></main></body></html>

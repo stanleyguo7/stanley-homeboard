@@ -11,27 +11,77 @@ dashboard_path = project_root / "reports" / "dashboard.html"
 
 def render(status, tags, recs, releases):
     sections = []
-    sections.append("<section class='card'><h2>观影统计</h2><ul>")
+    sections.append("<section class='card stats'><h2>观影概况</h2><ul>")
     for title, entry in sorted(status.items(), key=lambda item: item[1]["count"], reverse=True)[:4]:
-        sections.append(f"<li><strong>{title}</strong> · {entry['count']} 次 · {entry['last']:%Y-%m-%d}</li>")
+        sections.append(f"<li><strong>{title}</strong><span>{entry['count']} 集 · 最后看过 {entry['last']:%Y-%m-%d}</span></li>")
     sections.append("</ul></section>")
-    sections.append("<section class='card'><h2>关键词热度</h2><ul>")
+    sections.append("<section class='card tags'><h2>关键词热度</h2><div class='tag-cloud'>")
     for tag, value in tags.most_common():
-        sections.append(f"<li>{tag}: {value}</li>")
-    sections.append("</ul></section>")
-    sections.append("<section class='card'><h2>推荐剧集</h2><ul class='recommendations'>")
+        sections.append(f"<span>{tag} · {value}</span>")
+    sections.append("</div></section>")
+    sections.append("<section class='card recs'><h2>推荐剧集</h2><div class='recommendations'>")
     if not recs:
-        sections.append("<li>暂无推荐，等你看完更多内容再触发一次。</li>")
+        sections.append("<div class='empty'>暂无推荐，等你输更多偏好。</div>")
     else:
         for rec in recs:
-            sections.append(f"<li><strong>{rec['title']}</strong> · {', '.join(rec.get('tags', []))}<p>{rec.get('description') or rec.get('reason','')}</p></li>")
-    sections.append("</ul></section>")
-    sections.append("<section class='card'><h2>香港新片速递</h2><ul class='releases'>")
+            cover = rec.get("cover") or "https://images.unsplash.com/photo-1515165562834-c0f1c8f75ff7?auto=format&fit=crop&w=640&q=80"
+            actors = ", ".join(rec.get("actors", []))
+            genres = ", ".join(rec.get("genres", []))
+            link = rec.get("netflix_link", "#")
+            sections.append(
+                """
+                <article>
+                  <div class='cover' style='background-image:url(%s);'></div>
+                  <div class='info'>
+                    <h3><a href='%s' target='_blank'>%s</a></h3>
+                    <p class='meta'>%s</p>
+                    <p class='desc'>%s</p>
+                    <p class='meta actors'>演员：%s</p>
+                  </div>
+                </article>
+                """ % (cover, link, rec['title'], genres, rec.get('description') or rec.get('reason', ''), actors)
+            )
+    sections.append("</div></section>")
+    sections.append("<section class='card releases'><h2>香港新片速递</h2><div class='releases'>")
     for release in releases[:3]:
-        sections.append(f"<li><strong>{release['title']}</strong><p>{release.get('summary','')[:200]}</p></li>")
-    sections.append("</ul></section>")
-    base_style = """<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'/><title>观影仪表板</title><style>body{font-family:'Noto Sans SC',sans-serif;background:#0c0f1c;color:#f5f5f7;margin:0;padding:0;}main{max-width:1100px;margin:0 auto;padding:32px 24px 48px;}header{margin-bottom:28px;}h1{font-size:2.6rem;margin:0;}h2{margin:0 0 12px;font-size:1.4rem;color:#1ef3e3;}section.card{background:linear-gradient(145deg,#111524,#0b0d17);border:1px solid rgba(255,255,255,.08);padding:24px;border-radius:20px;margin-bottom:20px;box-shadow:0 20px 45px rgba(0,0,0,.45);}ul{list-style:none;margin:0;padding:0;}li{border-bottom:1px dashed rgba(255,255,255,.12);padding:10px 0;}li:last-child{border-bottom:none;}strong{font-size:1.15rem;display:block;margin-bottom:6px;}p{margin:0;color:#d4d4de;line-height:1.6;} .recommendations li{display:flex;flex-direction:column;} .releases li{background:rgba(255,255,255,.03);border-radius:12px;padding:12px 14px;margin-bottom:10px;} .footer-note{margin-top:16px;font-size:0.9rem;color:#888;}@media (max-width:768px){section.card{padding:18px;border-radius:16px;}main{padding:24px 16px 40px;}} </style></head><body><main><header><h1>Netflix 观影管家</h1><p class='footer-note'>结合你的历史记录与最新香港新片，帮你快速选剧。</p></header>"""
-    return base_style + "".join(sections) + "</main></body></html>"""
+        summary = release.get('summary','').replace('\n',' ')[:220]
+        sections.append(
+            """
+            <article>
+              <strong>%s</strong>
+              <p>%s</p>
+            </article>
+            """ % (release['title'], summary)
+        )
+    sections.append("</div></section>")
+    base_style = """<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'/><title>观影仪表板</title><meta name='viewport' content='width=device-width, initial-scale=1'/><style>
+    :root{color-scheme: dark;}
+    body{font-family:'Noto Sans SC',sans-serif;background:#060B16;color:#EFF0F7;margin:0;padding:0;}
+    main{width:min(1100px,100%);margin:0 auto;padding:32px 16px 48px;}
+    header{margin-bottom:32px;}
+    h1{font-size:2.8rem;margin:0;}
+    .subtitle{color:#9fb1c8;font-size:1rem;margin-top:6px;}
+    .card{background:linear-gradient(160deg,#101827,#070B11);border:1px solid rgba(255,255,255,.08);padding:20px 22px;border-radius:22px;margin-bottom:20px;box-shadow:0 25px 50px rgba(5,11,20,.6);}
+    h2{margin-top:0;margin-bottom:16px;font-size:1.5rem;color:#5FE4FF;}
+    ul{list-style:none;margin:0;padding:0;}
+    li{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);display:flex;flex-direction:column;}
+    li span{color:#9fb1c8;font-size:0.95rem;}
+    .card.tags .tag-cloud{display:flex;flex-wrap:wrap;gap:8px;}
+    .tag-cloud span{padding:6px 10px;background:rgba(255,255,255,.08);border-radius:999px;font-size:0.9rem;}
+    .recommendations article{display:flex;gap:18px;border-bottom:1px solid rgba(255,255,255,.05);padding-bottom:18px;margin-bottom:18px;}
+    .recommendations article:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+    .cover{width:140px;height:200px;background-size:cover;background-position:center;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.45);}
+    .info{flex:1;display:flex;flex-direction:column;gap:8px;}
+    .info h3{margin:0;font-size:1.2rem;}
+    .info h3 a{color:#FFFFFF;text-decoration:none;}
+    .info h3 a:hover{text-decoration:underline;}
+    .meta{color:#9fb1c8;font-size:0.9rem;}
+    .actors{font-size:0.85rem;}
+    .desc{color:#f0f0f7;}
+    .releases article{background:rgba(255,255,255,.02);padding:12px 14px;border-radius:12px;margin-bottom:12px;}
+    @media (max-width:768px){.recommendations article{flex-direction:column;} .cover{width:100%;height:220px;} }
+    </style></head><body><main><header><h1>Netflix 观影管家</h1><p class='subtitle'>结合你的观影记录+香港新片，实时生成个性推荐。</p></header>"""
+    return base_style + "".join(sections) + "</main></body></html>"
 
 
 def main():

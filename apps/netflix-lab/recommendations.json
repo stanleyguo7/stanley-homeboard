@@ -1,32 +1,52 @@
 [
   {
     "title": "罪夜之奔",
-    "tags": ["犯罪", "悬疑", "乔装"],
-    "description": "一位女狙击手踏上逃亡与复仇之旅，充满快节奏的心理斗智。",
-    "reason": "如果你喜欢节奏紧凑的女性主角悬疑，这部能持续带来惊喜。"
+    "tags": ["犯罪", "悬疑", "动作"],
+    "description": "女狙击手混迹都市，追寻亲人死因，镜头极速且情绪张力强。",
+    "actors": ["宋慧乔", "姜河那", "李凯南"],
+    "genres": ["犯罪", "心理", "都市"],
+    "cover": "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=640&q=80",
+    "netflix_link": "https://www.netflix.com/title/81390249",
+    "reason": "紧凑女性视角+悬疑动作，最适合你近期偏好的节奏。"
   },
   {
     "title": "暗夜列车",
-    "tags": ["剧情", "悬疑", "心理剧"],
-    "description": "一列长途列车上发生奇怪事件，镜头语言极为精致。",
-    "reason": "延续你近期追的悬疑风格，反转巧妙。"
+    "tags": ["剧情", "悬疑", "心理"],
+    "description": "列车上的神秘杀手引出乘客过去的纠葛，每站都是心理战。",
+    "actors": ["李学庆", "郑好", "刘仁娜"],
+    "genres": ["悬疑", "心理", "限制空间"],
+    "cover": "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=640&q=80",
+    "netflix_link": "https://www.netflix.com/title/80992911",
+    "reason": "同样属于密闭空间悬疑，反转丰富。"
   },
   {
     "title": "漂流家园",
     "tags": ["科幻", "家庭", "情绪"],
-    "description": "一对夫妻在太空情绪崩解，讨论亲密关系与身份。",
-    "reason": "适合想在剧情里加入轻科幻思考的夜晚。"
+    "description": "远征太空的夫妻面对未知生物与亲密危机，在零重力中重新定义家庭。",
+    "actors": ["郑雨盛", "金智秀", "朴宝英"],
+    "genres": ["科幻", "家庭剧情", "未来"],
+    "cover": "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=640&q=80",
+    "netflix_link": "https://www.netflix.com/title/81386759",
+    "reason": "想要一点科幻感又不失温度，这部很合适。"
   },
   {
     "title": "午夜餐车",
     "tags": ["生活", "旅行", "美食"],
-    "description": "跟着一辆移动餐车探索不同城市和人情味。",
-    "reason": "你也爱《吃货与阿毛的摩托公路游》，这个系列延续美食+文化。"
+    "description": "移动餐车走遍东南亚海岸，用当季食材讲述旅人的故事。",
+    "actors": ["钟志贤", "金裕贞"],
+    "genres": ["美食", "旅行", "纪录"],
+    "cover": "https://images.unsplash.com/photo-1484723091739-30a097e8f929?auto=format&fit=crop&w=640&q=80",
+    "netflix_link": "https://www.netflix.com/title/81116388",
+    "reason": "延续你喜欢的旅行+美食调性，节奏轻松。"
   },
   {
     "title": "暗香",
-    "tags": ["悬疑", "爱情", "女性视角"],
-    "description": "都市女性记者追查离奇案件，穿梭在记忆与现实之间。",
-    "reason": "结合你喜欢的女性主导+复杂情绪线索。"
+    "tags": ["悬疑", "爱情", "女性"],
+    "description": "记者穿梭在城市夜色中，借香水嗅出失踪案件的线索。",
+    "actors": ["徐睿知", "崔宇植"],
+    "genres": ["悬疑", "浪漫", "都市"],
+    "cover": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=80",
+    "netflix_link": "https://www.netflix.com/title/81017411",
+    "reason": "女性视角+浪漫悬疑正中你的下线。"
   }
 ]
