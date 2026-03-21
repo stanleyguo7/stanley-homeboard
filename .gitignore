@@ -1,3 +1,7 @@
 # Local sensitive config
 apps/chat-lite/config.js
 apps/chat-lite/server.log
+
+# Proxy check local runtime files
+scripts/check-proxy-and-recover.env
+scripts/check-proxy-and-recover.log

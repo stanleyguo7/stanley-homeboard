@@ -25,6 +25,13 @@ set -euo pipefail
 #   PASSWALL_TARGET_SECTION    实际写入 section（默认自动探测）
 #   PASSWALL_NODE_OPTION       实际写入字段（默认自动探测）
 #
+# 防抖与回切（可选，默认开启）：
+#   PROXY_STATE_FILE           状态文件（默认 /tmp/check-proxy-state）
+#   FAIL_THRESHOLD             连续失败达到阈值才执行恢复（默认 3）
+#   RECOVER_THRESHOLD          连续成功达到阈值后允许回切主节点（默认 2）
+#   PREFER_PRIMARY             1=优先回切主节点，0=不回切（默认 1）
+#   PASSWALL_PRIMARY_NODE      主节点 ID（默认取候选列表第一个）
+#
 #   自动探测逻辑：
 #   1) @global[0].tcp_node 存在 -> 写 @global[0].tcp_node
 #   2) @global[0].node 指向某节点，且该节点有 default_node -> 写 <node>.default_node
@@ -48,6 +55,12 @@ PASSWALL_NODE_CANDIDATES="${PASSWALL_NODE_CANDIDATES:-}"
 PASSWALL_GLOBAL_SECTION="${PASSWALL_GLOBAL_SECTION:-@global[0]}"
 PASSWALL_TARGET_SECTION="${PASSWALL_TARGET_SECTION:-}"
 PASSWALL_NODE_OPTION="${PASSWALL_NODE_OPTION:-}"
+
+PROXY_STATE_FILE="${PROXY_STATE_FILE:-/tmp/check-proxy-state}"
+FAIL_THRESHOLD="${FAIL_THRESHOLD:-3}"
+RECOVER_THRESHOLD="${RECOVER_THRESHOLD:-2}"
+PREFER_PRIMARY="${PREFER_PRIMARY:-1}"
+PASSWALL_PRIMARY_NODE="${PASSWALL_PRIMARY_NODE:-}"
 
 IFS=',' read -r -a URLS <<< "$CHECK_URLS"
 
@@ -74,6 +87,36 @@ check_connectivity() {
 remote_run() {
   local cmd="$1"
   ssh -p "$ROUTER_PORT" $ROUTER_SSH_OPTS "${ROUTER_USER}@${ROUTER_HOST}" "$cmd"
+}
+
+read_state() {
+  FAIL_COUNT=0
+  SUCCESS_COUNT=0
+  [[ -f "$PROXY_STATE_FILE" ]] || return 0
+  while IFS='=' read -r k v; do
+    case "$k" in
+      FAIL_COUNT) FAIL_COUNT="${v:-0}" ;;
+      SUCCESS_COUNT) SUCCESS_COUNT="${v:-0}" ;;
+    esac
+  done < "$PROXY_STATE_FILE"
+}
+
+write_state() {
+  cat > "$PROXY_STATE_FILE" <<EOF
+FAIL_COUNT=${FAIL_COUNT:-0}
+SUCCESS_COUNT=${SUCCESS_COUNT:-0}
+EOF
+}
+
+current_passwall_node() {
+  detect_passwall_target
+  remote_run "uci -q get passwall2.${PASSWALL_TARGET_SECTION}.${PASSWALL_NODE_OPTION} || true" | tr -d '\r\n'
+}
+
+switch_to_node() {
+  local node="$1"
+  detect_passwall_target
+  remote_run "uci set passwall2.${PASSWALL_TARGET_SECTION}.${PASSWALL_NODE_OPTION}='${node}' && uci commit passwall2"
 }
 
 detect_passwall_target() {
@@ -140,6 +183,33 @@ rotate_node_if_configured() {
   remote_run "uci set passwall2.${PASSWALL_TARGET_SECTION}.${PASSWALL_NODE_OPTION}='${next}' && uci commit passwall2"
 }
 
+maybe_return_to_primary() {
+  [[ "$PREFER_PRIMARY" == "1" ]] || return 0
+  [[ -n "$PASSWALL_NODE_CANDIDATES" ]] || return 0
+
+  local primary current
+  if [[ -n "$PASSWALL_PRIMARY_NODE" ]]; then
+    primary="$PASSWALL_PRIMARY_NODE"
+  else
+    IFS=',' read -r -a CANDS <<< "$PASSWALL_NODE_CANDIDATES"
+    primary="${CANDS[0]:-}"
+  fi
+  [[ -n "$primary" ]] || return 0
+
+  current="$(current_passwall_node)"
+  if [[ "$current" == "$primary" ]]; then
+    return 0
+  fi
+
+  if [[ ${SUCCESS_COUNT:-0} -ge ${RECOVER_THRESHOLD:-2} ]]; then
+    log "连续成功 ${SUCCESS_COUNT} 次，回切主节点：$current -> $primary"
+    switch_to_node "$primary"
+    remote_run "/etc/init.d/passwall2 restart"
+    SUCCESS_COUNT=0
+    write_state
+  fi
+}
+
 recover_proxy() {
   if [[ -z "$ROUTER_HOST" ]]; then
     log "ROUTER_HOST 未设置，无法自动恢复。"
@@ -156,16 +226,34 @@ recover_proxy() {
 }
 
 main() {
+  read_state
+
   if check_connectivity; then
-    log "网络检测通过，无需恢复。"
+    FAIL_COUNT=0
+    SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    write_state
+    maybe_return_to_primary
+    log "网络检测通过，无需恢复。连续成功：$SUCCESS_COUNT"
     exit 0
   fi
 
-  log "外网疑似不可达，执行软路由恢复流程。"
+  SUCCESS_COUNT=0
+  FAIL_COUNT=$((FAIL_COUNT + 1))
+  write_state
+
+  if [[ $FAIL_COUNT -lt $FAIL_THRESHOLD ]]; then
+    log "外网疑似不可达，连续失败 $FAIL_COUNT/$FAIL_THRESHOLD，暂不切换。"
+    exit 1
+  fi
+
+  log "外网疑似不可达，连续失败 $FAIL_COUNT 次，执行软路由恢复流程。"
   recover_proxy
 
   sleep 3
   if check_connectivity; then
+    FAIL_COUNT=0
+    SUCCESS_COUNT=1
+    write_state
     log "恢复成功。"
     exit 0
   fi
