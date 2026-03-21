@@ -31,6 +31,8 @@ set -euo pipefail
 #   RECOVER_THRESHOLD          连续成功达到阈值后允许回切主节点（默认 2）
 #   PREFER_PRIMARY             1=优先回切主节点，0=不回切（默认 1）
 #   PASSWALL_PRIMARY_NODE      主节点 ID（默认取候选列表第一个）
+#   SWITCH_COOLDOWN_SEC        最小切换间隔秒（默认 600）
+#   STRUCTURED_LOG_FILE        结构化日志文件（默认空，不输出）
 #
 #   自动探测逻辑：
 #   1) @global[0].tcp_node 存在 -> 写 @global[0].tcp_node
@@ -61,6 +63,8 @@ FAIL_THRESHOLD="${FAIL_THRESHOLD:-3}"
 RECOVER_THRESHOLD="${RECOVER_THRESHOLD:-2}"
 PREFER_PRIMARY="${PREFER_PRIMARY:-1}"
 PASSWALL_PRIMARY_NODE="${PASSWALL_PRIMARY_NODE:-}"
+SWITCH_COOLDOWN_SEC="${SWITCH_COOLDOWN_SEC:-600}"
+STRUCTURED_LOG_FILE="${STRUCTURED_LOG_FILE:-}"
 
 IFS=',' read -r -a URLS <<< "$CHECK_URLS"
 
@@ -92,11 +96,13 @@ remote_run() {
 read_state() {
   FAIL_COUNT=0
   SUCCESS_COUNT=0
+  LAST_SWITCH_TS=0
   [[ -f "$PROXY_STATE_FILE" ]] || return 0
   while IFS='=' read -r k v; do
     case "$k" in
       FAIL_COUNT) FAIL_COUNT="${v:-0}" ;;
       SUCCESS_COUNT) SUCCESS_COUNT="${v:-0}" ;;
+      LAST_SWITCH_TS) LAST_SWITCH_TS="${v:-0}" ;;
     esac
   done < "$PROXY_STATE_FILE"
 }
@@ -105,7 +111,35 @@ write_state() {
   cat > "$PROXY_STATE_FILE" <<EOF
 FAIL_COUNT=${FAIL_COUNT:-0}
 SUCCESS_COUNT=${SUCCESS_COUNT:-0}
+LAST_SWITCH_TS=${LAST_SWITCH_TS:-0}
 EOF
+}
+
+structured_log() {
+  local event="$1" detail="${2:-}"
+  [[ -n "$STRUCTURED_LOG_FILE" ]] || return 0
+  local ts current
+  ts="$(date -Iseconds)"
+  current="$(current_passwall_node 2>/dev/null || true)"
+  mkdir -p "$(dirname "$STRUCTURED_LOG_FILE")"
+  echo "{\"ts\":\"$ts\",\"event\":\"$event\",\"current\":\"${current:-}\",\"fail_count\":${FAIL_COUNT:-0},\"success_count\":${SUCCESS_COUNT:-0},\"detail\":\"$detail\"}" >> "$STRUCTURED_LOG_FILE"
+}
+
+can_switch_now() {
+  local now elapsed
+  now="$(date +%s)"
+  elapsed=$((now - ${LAST_SWITCH_TS:-0}))
+  if [[ ${LAST_SWITCH_TS:-0} -gt 0 && $elapsed -lt ${SWITCH_COOLDOWN_SEC:-600} ]]; then
+    log "处于切换冷却期（${elapsed}s/${SWITCH_COOLDOWN_SEC}s），本次不切换。"
+    structured_log "cooldown_skip" "elapsed=${elapsed}s"
+    return 1
+  fi
+  return 0
+}
+
+mark_switched_now() {
+  LAST_SWITCH_TS="$(date +%s)"
+  write_state
 }
 
 current_passwall_node() {
@@ -181,6 +215,8 @@ rotate_node_if_configured() {
 
   log "尝试切换节点：$current -> $next"
   remote_run "uci set passwall2.${PASSWALL_TARGET_SECTION}.${PASSWALL_NODE_OPTION}='${next}' && uci commit passwall2"
+  mark_switched_now
+  structured_log "switch" "$current->$next"
 }
 
 maybe_return_to_primary() {
@@ -197,14 +233,23 @@ maybe_return_to_primary() {
   [[ -n "$primary" ]] || return 0
 
   current="$(current_passwall_node)"
+  if [[ -z "$current" ]]; then
+    structured_log "primary_check_skip" "current_empty"
+    return 0
+  fi
   if [[ "$current" == "$primary" ]]; then
     return 0
   fi
 
   if [[ ${SUCCESS_COUNT:-0} -ge ${RECOVER_THRESHOLD:-2} ]]; then
+    if ! can_switch_now; then
+      return 0
+    fi
     log "连续成功 ${SUCCESS_COUNT} 次，回切主节点：$current -> $primary"
     switch_to_node "$primary"
     remote_run "/etc/init.d/passwall2 restart"
+    mark_switched_now
+    structured_log "switch_back_primary" "$current->$primary"
     SUCCESS_COUNT=0
     write_state
   fi
@@ -232,6 +277,7 @@ main() {
     FAIL_COUNT=0
     SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
     write_state
+    structured_log "healthy" "success_count=$SUCCESS_COUNT"
     maybe_return_to_primary
     log "网络检测通过，无需恢复。连续成功：$SUCCESS_COUNT"
     exit 0
@@ -242,11 +288,16 @@ main() {
   write_state
 
   if [[ $FAIL_COUNT -lt $FAIL_THRESHOLD ]]; then
+    structured_log "soft_fail" "fail_count=$FAIL_COUNT"
     log "外网疑似不可达，连续失败 $FAIL_COUNT/$FAIL_THRESHOLD，暂不切换。"
     exit 1
   fi
 
   log "外网疑似不可达，连续失败 $FAIL_COUNT 次，执行软路由恢复流程。"
+  if ! can_switch_now; then
+    structured_log "recover_skipped_cooldown" "fail_count=$FAIL_COUNT"
+    exit 1
+  fi
   recover_proxy
 
   sleep 3
@@ -254,10 +305,12 @@ main() {
     FAIL_COUNT=0
     SUCCESS_COUNT=1
     write_state
+    structured_log "recover_ok" "after_switch"
     log "恢复成功。"
     exit 0
   fi
 
+  structured_log "recover_failed" "manual_check_required"
   log "恢复后仍不可达，请人工检查。"
   exit 2
 }
